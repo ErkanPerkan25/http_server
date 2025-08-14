@@ -1,10 +1,9 @@
 #include <iostream>
+
 #include <netinet/in.h>
 #include <sys/socket.h>
-
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <unistd.h>
 
 using namespace std;
@@ -16,6 +15,11 @@ using namespace std;
 #define LISTEN_ERROR 4
 
 #define MAX_WAITING 25
+#define MAX_BUFFER_SIZE 1025
+
+
+int connectToServer(int port);
+void processRequest(int conn_sock, struct sockaddr_in *);
 
 int connectToServer(int port){
     int listen_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -45,10 +49,43 @@ int connectToServer(int port){
     }
 
     while(true){
+        int connected_sock; // socket for connected client 
+        struct sockaddr_in client; // hold client address data
+        unsigned int client_len = sizeof(client); // size of client address data
+
+        // connect server and client 
+        connected_sock = accept(listen_socket,
+                                 (struct sockaddr*) &client,
+                                 &client_len
+                                );
+
+        // Process client request
+        processRequest(connected_sock, &client);
     }
 
     // Will never get here until server is shutdown
     return SUCCESS;
+}
+
+void processRequest(int conn_sock, struct sockaddr_in* client_addr){
+    char* buffer[MAX_BUFFER_SIZE];
+    int charsRead = 0;
+    int totalCHarsRead = 0;
+
+    while(true){
+        charsRead = read(conn_sock, buffer, 1024);
+
+        // breaks if errors (-1) or EOF (0)
+        if(charsRead <= 0)
+            break;
+
+        totalCHarsRead += charsRead;
+
+    }
+    
+    cout << buffer << endl;
+
+    close(conn_sock);
 }
 
 

@@ -1,5 +1,11 @@
-cmake_minimum_required(VERSION 3.10)
-
+# set the minimum cmake version
+cmake_minimum_required(VERSION 3.15)
 project(http_server)
 
-add_executable(http_server main.cpp)
+# adds source files
+set(SOURCES
+    src/main.cpp
+)
+
+# Creates executable
+add_executable(http_server ${SOURCES})
