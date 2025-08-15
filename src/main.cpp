@@ -1,10 +1,10 @@
 #include <iostream>
-
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sstream>
 
 using namespace std;
 
@@ -15,7 +15,7 @@ using namespace std;
 #define LISTEN_ERROR 4
 
 #define MAX_WAITING 25
-#define MAX_BUFFER_SIZE 1025
+#define MAX_BUFFER_SIZE 4096
 
 
 int connectToServer(int port);
@@ -68,22 +68,35 @@ int connectToServer(int port){
 }
 
 void processRequest(int conn_sock, struct sockaddr_in* client_addr){
-    char* buffer[MAX_BUFFER_SIZE];
-    int charsRead = 0;
-    int totalCHarsRead = 0;
+    stringstream req; 
+
+    char buffer[MAX_BUFFER_SIZE];
+    unsigned int charsRead;
+    unsigned int totalCharsRead;
 
     while(true){
-        charsRead = read(conn_sock, buffer, 1024);
-
-        // breaks if errors (-1) or EOF (0)
+        charsRead = read(conn_sock, buffer, MAX_BUFFER_SIZE);
+        
+        // Either failed or had nothing more to read
         if(charsRead <= 0)
             break;
+        
+        req << buffer;
 
-        totalCHarsRead += charsRead;
+        totalCharsRead += charsRead;
 
+        if(charsRead < MAX_BUFFER_SIZE)
+            break;
     }
-    
-    cout << buffer << endl;
+
+    req.str()[totalCharsRead] = '\0';
+
+    if(req.str()[totalCharsRead-1] == '\n')
+        req.str()[totalCharsRead-2] = '\0';
+
+
+    cout << req.str() << endl;
+
 
     close(conn_sock);
 }
