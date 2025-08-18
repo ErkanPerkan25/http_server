@@ -1,4 +1,1 @@
-#ifndef _HANDLE_CLIENT_HPP_
-#define _HANDLE_CLIENT_HPP_
-
-#endif
+int handle_client(int client_sock);
