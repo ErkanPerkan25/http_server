@@ -9,7 +9,6 @@
 
 using namespace std;
 
-#define SUCCESS     0
 #define USAGE_ERROR 1
 #define SOCK_ERROR  2
 #define BIND_ERROR  3
@@ -63,5 +62,5 @@ int create_conn_sock(int port){
     */
 
     // Will never get here until server is shutdown
-    return SUCCESS;
+    return server_fd;
 }

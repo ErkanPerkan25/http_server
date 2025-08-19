@@ -12,7 +12,7 @@ file( GLOB_RECURSE HPPS "${INCLUDE_PATH}/*.hpp" )
 file( GLOB_RECURSE CPPS "${SOURCE_PATH}/*.cpp" )
 
 # Export compile commands for LSP
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # adds source files
 set(SOURCES

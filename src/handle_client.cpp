@@ -7,6 +7,8 @@
 
 #include "handle_client.hpp"
 
+#define MAX_BUFFER 512
+
 typedef struct{
     char *method;
     char *uri;
@@ -20,109 +22,34 @@ typedef struct{
     char *reason;
 } status_line;
 
-/*
-int handle_client(int conn_sock, struct sockaddr_in* client_addr){
-    //stringstream req; 
-    //string method, path, version;
+int handle_client(int conn_sock){
 
-    char buffer[81];
-    int charsRead;
-    int totalCharsRead = 0;
+    http_req_t client_req {};
+    status_line status_line {};
 
-    while(true){
-        charsRead = read(conn_sock, buffer, 80);
+    char buffer[MAX_BUFFER];
+    int charsRead = 0;
+    int totatlCharsRead = 0;
+
+    while (true) {
+        charsRead = read(conn_sock, buffer, MAX_BUFFER);
         
-        // Either failed or had nothing more to read
-        if(charsRead <= 0)
+        // Either EOF or Error
+        if(charsRead < 0)
             break;
         
-        req << buffer;
+        totatlCharsRead += charsRead;
 
-        totalCharsRead += charsRead;
-
-        if(charsRead < 80)
+        if(charsRead < MAX_BUFFER)
             break;
     }
 
-    cout << req.str().length() << endl;
-
-    cout << "Total chars read: " << totalCharsRead << endl;
-
-    
-    req.str()[totalCharsRead] = '\0';
-
-    if(req.str()[totalCharsRead-1] == '\n')
-        req.str()[totalCharsRead-2] = '\0';
-    
-    //totalCharsRead = 0;
-
-    req >> method >> path;
-
-    if(method == "GET"){
-        cout << "Recived a 'GET' request! " << endl;
-        // Removes the leading . and / of the path
-        for(int i=0; i < path.size(); i++){
-            if(path[i] == '.' || path[i] == '/'){
-                path.erase(path.begin()+i);
-                i--;
-            }
-            else{
-                break;
-            }
-        }
-
-        path = "../www/"+path;
-
-
-        fstream fs;
-        fs.open(path);
-        if(fs.is_open()){
-            string buffer;
-
-            buffer += "HTTP/1.1 202 OK\n";
-            buffer += "Content-Type: text/html\n\r\n";
-
-            char ch;
-            while (fs.get(ch)) {
-                buffer += ch;
-            }
-
-
-            fs.close();
-
-            char* cbuff = (char *) buffer.c_str();
-            int needed = buffer.size();
-
-            while (needed) {
-                int n = write(conn_sock, cbuff, needed);
-                needed -= n;
-                cbuff += n;
-            }
-        }
-        else{
-            string buffer;
-
-            buffer += "404 NOT FOUND\r\n\r\n";
-            buffer += "<b>404 - Error resource not found on the server</b>";
-
-            char* cbuff = (char *) buffer.c_str();
-
-            int needed = buffer.length();
-
-            while(needed){
-                int n = write(conn_sock, cbuff, needed);
-                needed -= n;
-                cbuff += n;
-            }
-
-        }
-    }
-    else{
-        cerr << "405 Method not allowed! Stopping the request!\n";
+    buffer[totatlCharsRead-1] = '\0';
+    if(buffer[totatlCharsRead-1] == '\n'){
+        buffer[totatlCharsRead-2] = '\0';
     }
 
-    cout << "Connection from " << inet_ntoa(client_addr->sin_addr) << endl;
+    std::cout << buffer << std::endl;
 
-    close(conn_sock);
+    return close(conn_sock);
 }
-*/
