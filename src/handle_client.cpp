@@ -21,9 +21,9 @@ typedef struct{
 } http_req_t;
 
 typedef struct{
-    char *version;
-    char *status;
-    char *reason;
+    const char *version;
+    const char *status;
+    const char *reason;
 } status_line_t;
 
 typedef struct{
@@ -31,6 +31,11 @@ typedef struct{
     char *content_type;
     uint32_t cotent_length;
 } http_res_t;
+
+void cleanup(char **ptr){
+    free(*ptr);
+    *ptr = NULL;
+}
 
 int parse_http_req(char * msg, http_req_t *req){
     // parse each line by using CRLF
@@ -51,45 +56,79 @@ int parse_http_req(char * msg, http_req_t *req){
     char *second_token_ptr;
     char *uri = strtok_r(first_token_ptr, " ", &second_token_ptr);
     size_t uri_size_len = strlen(uri);
-    req->uri = (char *)calloc(uri_size_len, sizeof(char));
+    req->uri = (char *)calloc(uri_size_len+1, sizeof(char));
     if(req->uri == NULL){
+        goto free_up_memory;
         return -1;
     }
-    strcpy(req->uri, uri);
-
-    while(line != NULL){
+    strncpy(req->uri, uri, uri_size_len);
     
+    char *field;
+    while(line != NULL){
+        line = strtok_r(NULL, CRLF, &saveptr);
+
+        char *token_ptr;
+        char *token = strtok_r(line, " ", &token_ptr);
+
+        while(token != NULL){
+            size_t token_size = strlen(token);
+            if(strncmp("Host:", token, token_size) == 0){
+                field = req->host;
+            }
+            else if(strncmp("User-agent:", token, token_size) == 0){
+                field = req->usr_agent;
+            }
+            else{
+                if(field == req->host){
+                    req->host = (char *)calloc(token_size+1, sizeof(char));
+                    if(req->host == NULL){
+                        goto free_up_memory;
+                    }
+                    strncpy(req->host, token, token_size+1);
+                }
+                else if(field == req->usr_agent){
+                    req->usr_agent = (char *)calloc(token_size+1, sizeof(char));
+                    if(req->usr_agent == NULL){
+                        goto free_up_memory;
+                    }
+                    strncpy(req->usr_agent, token, token_size+1);
+                }
+            }
+            token = strtok_r(NULL, " ", &token_ptr);
+        }
     }
 
-    // parse the host
-    /*
-    line = strtok_r(saveptr, CRLF, &saveptr);
+    return 0;
 
-    char* host_var;
-    char* host_h = strtok_r(line, " ", &host_var);
-    size_t  host_size_len = strlen(host_h);
-    req->host = (char*)calloc(host_size_len+1, sizeof(char));
-    if(req->host == NULL) return -1; 
-    strcpy(req->host, host_h);
+    free_up_memory:
+        cleanup(&req->method);
+        cleanup(&req->uri);
+        cleanup(&req->host);
+        cleanup(&req->usr_agent);
+    return -1;
+}
 
-    line = strtok_r(saveptr, CRLF, &saveptr);
-    */
+char * create_http_res(char **content, http_res_t *res){
+    res->status_line.status = "200";
+    res->status_line.reason = "OK";
+    res->status_line.version = "HTTP/1.1";
 
-    
+    if(content != NULL){
+        res->status_line.status = "500";
+        res->status_line.reason = "Server Error";
+    }
     return 0;
 }
 
 int handle_client(int conn_sock){
 
-    http_req_t client_req {};
-    http_res_t client_res {};
 
     char buffer[MAX_BUFFER];
     int charsRead = 0;
     int totatlCharsRead = 0;
 
     while (true) {
-        charsRead = read(conn_sock, buffer, MAX_BUFFER);
+        charsRead = recv(conn_sock, buffer, MAX_BUFFER,0);
         
         // Either EOF or Error
         if(charsRead < 0)
@@ -106,8 +145,33 @@ int handle_client(int conn_sock){
         buffer[totatlCharsRead-2] = '\0';
     }
 
-    parse_http_req(buffer, &client_req);
-    //std::cout << buffer << std::endl;
+    http_req_t req {0};
+
+    if(parse_http_req(buffer, &req) == -1){
+        return -1;
+    }
+
+    const char* filename = "";
+    // remove leading '.' and '/'
+    size_t url_size = strlen(req.uri);
+    for(int i,j=0; i < url_size; i++){
+        if(req.uri[i] != '.' || req.uri[i] != '/'){
+            req.uri[j++] = req.uri[i];
+        }
+        else{
+            req.uri[j] = '\0';
+            break;
+        }
+    }
+
+    if(strncmp(req.uri, "/", 1) == 0){
+    }
+
+    //printf("%d", *req.host);
+
+    ////http_res_t res{};
+    //char * res_str = create_http_res(char **, http_res_t *res)
 
     return close(conn_sock);
 }
+
