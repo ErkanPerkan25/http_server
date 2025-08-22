@@ -1,3 +1,4 @@
+#include <cerrno>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -120,8 +121,23 @@ char * create_http_res(char **content, http_res_t *res){
     return 0;
 }
 
-int handle_client(int conn_sock){
+long get_fsize(FILE *fptr){
+    if(fseek(fptr, 0, SEEK_END) != 0){
+        fclose(fptr);
+        printf("Error seeking file: %d\n", errno);
+        return -1;
+    }
+    long fsize = ftell(fptr);
+    if(ftell(fptr) == -1){
+        fclose(fptr);
+        printf("Error telling file: %d\n", errno);
+        return -1;
+    }
+    rewind(fptr);
+    return fsize;
+}
 
+int handle_client(int conn_sock){
 
     char buffer[MAX_BUFFER];
     int charsRead = 0;
@@ -147,29 +163,86 @@ int handle_client(int conn_sock){
 
     http_req_t req {0};
 
-    if(parse_http_req(buffer, &req) == -1){
+    if(parse_http_req(buffer, &req) == 1){
         return -1;
     }
 
-    const char* filename = "";
     // remove leading '.' and '/'
-    size_t url_size = strlen(req.uri);
+    size_t url_size = strlen(req.uri);  
+    size_t filename_size;
+    // gets the size of filename
     for(int i,j=0; i < url_size; i++){
         if(req.uri[i] != '.' || req.uri[i] != '/'){
-            req.uri[j++] = req.uri[i];
+            j++;
         }
         else{
-            req.uri[j] = '\0';
+            filename_size = j;
             break;
         }
     }
 
-    if(strncmp(req.uri, "/", 1) == 0){
+    // allocates the memory and sets it
+    char *filename = (char *)calloc(filename_size+1, sizeof(char));
+    for(int i,j=0; i < url_size; i++){
+        if(req.uri[i] != '.' || req.uri[i] != '/'){
+            filename[j++] = req.uri[i];
+        }
+        else{
+            filename[j] = '\0';
+            break;
+        }
     }
 
-    //printf("%d", *req.host);
+    //set path to file
+    char path[100] = "../www/";
 
-    ////http_res_t res{};
+    strcat(path, filename);
+
+    printf("%s\n", path);
+
+    char *fbuffer; 
+    FILE* fptr = fopen(path, "r");
+
+    if(fptr == NULL){
+        printf("Error: Could access file on server.");
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        return -1;
+    }
+    else{
+        long fsize = get_fsize(fptr);
+
+        char *fbuffer = (char*)calloc(fsize+1, sizeof(char));
+
+        if(fbuffer == NULL){
+            cleanup(&req.method);
+            cleanup(&req.uri);
+            cleanup(&req.host);
+            cleanup(&req.usr_agent);
+            return -1;
+        }
+
+        fread(fbuffer, sizeof(char), fsize, fptr);
+        if(fbuffer == NULL){
+            fclose(fptr);
+            cleanup(&req.method);
+            cleanup(&req.uri);
+            cleanup(&req.host);
+            cleanup(&req.usr_agent);
+            return -1;
+        }
+
+        fbuffer[fsize] = '\0';
+
+        fclose(fptr);
+
+    }
+
+    printf("%s\n", fbuffer);
+
+    //http_res_t res{};
     //char * res_str = create_http_res(char **, http_res_t *res)
 
     return close(conn_sock);
