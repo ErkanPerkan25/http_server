@@ -29,7 +29,7 @@ typedef struct{
 
 typedef struct{
     status_line_t status_line;
-    char *content_type;
+    const char *content_type;
     uint32_t cotent_length;
 } http_res_t;
 
@@ -109,15 +109,20 @@ int parse_http_req(char * msg, http_req_t *req){
     return -1;
 }
 
-char * create_http_res(char **content, http_res_t *res){
+char* create_http_res(char *content, http_res_t *res){
     res->status_line.status = "200";
     res->status_line.reason = "OK";
     res->status_line.version = "HTTP/1.1";
 
-    if(content != NULL){
+    if(content == NULL){
         res->status_line.status = "500";
         res->status_line.reason = "Server Error";
     }
+
+    res->content_type = "text/html";
+    res->cotent_length = sizeof(content);
+
+
     return 0;
 }
 
@@ -183,7 +188,7 @@ int handle_client(int conn_sock){
 
     // allocates the memory and sets it
     char *filename = (char *)calloc(filename_size+1, sizeof(char));
-    for(int i,j=0; i < url_size; i++){
+    for(int j,i=0; i < url_size; i++){
         if(req.uri[i] != '.' || req.uri[i] != '/'){
             filename[j++] = req.uri[i];
         }
@@ -193,15 +198,35 @@ int handle_client(int conn_sock){
         }
     }
 
+    if(filename == NULL){
+        return -1;
+    }
     //set path to file
-    char path[100] = "../www/";
+    char *path = (char*)"../www";
 
-    strcat(path, filename);
+    size_t path_size = strlen(path);
+    size_t file_var_size = strlen(filename);
 
-    printf("%s\n", path);
+    char *full_path = (char*)calloc((path_size+file_var_size)+1, sizeof(char));
+    if(full_path == NULL){
+        cleanup(&path);
+        cleanup(&filename);
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        return -1;
+    }
+
+    strcpy(full_path, path);
+    strcat(full_path, filename);
+
+    printf("%s\n", filename);
+    printf("%s\n", full_path);
+
 
     char *fbuffer; 
-    FILE* fptr = fopen(path, "r");
+    FILE* fptr = fopen(full_path, "r");
 
     if(fptr == NULL){
         printf("Error: Could access file on server.");
@@ -214,7 +239,7 @@ int handle_client(int conn_sock){
     else{
         long fsize = get_fsize(fptr);
 
-        char *fbuffer = (char*)calloc(fsize+1, sizeof(char));
+        fbuffer = (char*)calloc(fsize+1, sizeof(char));
 
         if(fbuffer == NULL){
             cleanup(&req.method);
@@ -225,6 +250,7 @@ int handle_client(int conn_sock){
         }
 
         fread(fbuffer, sizeof(char), fsize, fptr);
+
         if(fbuffer == NULL){
             fclose(fptr);
             cleanup(&req.method);
@@ -237,13 +263,12 @@ int handle_client(int conn_sock){
         fbuffer[fsize] = '\0';
 
         fclose(fptr);
-
     }
 
     printf("%s\n", fbuffer);
 
-    //http_res_t res{};
-    //char * res_str = create_http_res(char **, http_res_t *res)
+    http_res_t res{0};
+    char *res_str = create_http_res(buffer, &res);
 
     return close(conn_sock);
 }
