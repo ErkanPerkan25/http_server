@@ -22,14 +22,14 @@ typedef struct{
 } http_req_t;
 
 typedef struct{
-    const char *version;
-    const char *status;
-    const char *reason;
+    char *version;
+    char *status;
+    char *reason;
 } status_line_t;
 
 typedef struct{
     status_line_t status_line;
-    const char *content_type;
+    char *content_type;
     uint32_t cotent_length;
 } http_res_t;
 
@@ -42,6 +42,9 @@ int parse_http_req(char * msg, http_req_t *req){
     // parse each line by using CRLF
     char* saveptr; // stores the rest of the msg here
     char* line = strtok_r(msg, CRLF, &saveptr);
+    if(line == NULL){
+        return -1;
+    }
 
     // parse the words in the line
     char *first_token_ptr;
@@ -99,6 +102,7 @@ int parse_http_req(char * msg, http_req_t *req){
         }
     }
 
+    printf("Successfuly parsed HTTTP request.\n");
     return 0;
 
     free_up_memory:
@@ -106,24 +110,46 @@ int parse_http_req(char * msg, http_req_t *req){
         cleanup(&req->uri);
         cleanup(&req->host);
         cleanup(&req->usr_agent);
-    return -1;
+        return -1;
 }
 
-char* create_http_res(char *content, http_res_t *res){
-    res->status_line.status = "200";
-    res->status_line.reason = "OK";
-    res->status_line.version = "HTTP/1.1";
+char *create_http_res(char **content, http_res_t *res){
+    res->status_line.status = (char*) "200";
+    res->status_line.reason = (char*) "OK";
+    res->status_line.version = (char*) "HTTP/1.1";
 
     if(content == NULL){
-        res->status_line.status = "500";
-        res->status_line.reason = "Server Error";
+        res->status_line.status = (char*) "500";
+        res->status_line.reason = (char*) "Server Error";
     }
 
-    res->content_type = "text/html";
-    res->cotent_length = sizeof(content);
+    res->content_type = (char*) "text/html";
+    res->cotent_length = strlen(*content);
 
+    char *res_str = (char*) calloc(res->cotent_length+100, sizeof(char));
+    strcpy(res_str, res->status_line.version);
+    strcat(res_str, " ");
+    strcat(res_str, res->status_line.status);
+    strcat(res_str, " ");
+    strcat(res_str, res->status_line.reason);
+    strcat(res_str, CRLF);
+    strcat(res_str, "Content-Type: ");
+    strcat(res_str, res->content_type);
+    strcat(res_str, CRLF);
+    strcat(res_str, "Content-length: ");
+    char* content_size = (char*)calloc(32+1, sizeof(char));
+    if(content_size == NULL){
+        return NULL;
+    }
+    sprintf(content_size, "%d", res->cotent_length);
+    strcat(res_str, content_size);
+    cleanup(&content_size);
+    strcat(res_str, CRLF);
+    strcat(res_str, CRLF);
+    strcat(res_str, *content);
 
-    return 0;
+    printf("Successfuly created a HTTP resposne.\n");
+    return res_str;
 }
 
 long get_fsize(FILE *fptr){
@@ -172,6 +198,8 @@ int handle_client(int conn_sock){
         return -1;
     }
 
+    printf("%s\n", req.uri);
+
     // remove leading '.' and '/'
     size_t url_size = strlen(req.uri);  
     size_t filename_size;
@@ -188,7 +216,12 @@ int handle_client(int conn_sock){
 
     // allocates the memory and sets it
     char *filename = (char *)calloc(filename_size+1, sizeof(char));
-    for(int j,i=0; i < url_size; i++){
+    if(filename == NULL){
+        cleanup(&filename);
+        return -1;
+    }
+
+    for(int i,j=0; i < url_size; i++){
         if(req.uri[i] != '.' || req.uri[i] != '/'){
             filename[j++] = req.uri[i];
         }
@@ -198,16 +231,12 @@ int handle_client(int conn_sock){
         }
     }
 
-    if(filename == NULL){
-        return -1;
-    }
-    //set path to file
-    char *path = (char*)"../www";
+    char *path = (char*)"../www/";
 
     size_t path_size = strlen(path);
     size_t file_var_size = strlen(filename);
 
-    char *full_path = (char*)calloc((path_size+file_var_size)+1, sizeof(char));
+    char *full_path = (char*)calloc(path_size+file_var_size+1, sizeof(char));
     if(full_path == NULL){
         cleanup(&path);
         cleanup(&filename);
@@ -219,11 +248,10 @@ int handle_client(int conn_sock){
     }
 
     strcpy(full_path, path);
+    printf("%s\n",filename);
     strcat(full_path, filename);
 
-    printf("%s\n", filename);
     printf("%s\n", full_path);
-
 
     char *fbuffer; 
     FILE* fptr = fopen(full_path, "r");
@@ -236,39 +264,70 @@ int handle_client(int conn_sock){
         cleanup(&req.usr_agent);
         return -1;
     }
-    else{
-        long fsize = get_fsize(fptr);
+    long fsize = get_fsize(fptr);
 
-        fbuffer = (char*)calloc(fsize+1, sizeof(char));
+    fbuffer = (char*)calloc(fsize+1, sizeof(char));
 
-        if(fbuffer == NULL){
-            cleanup(&req.method);
-            cleanup(&req.uri);
-            cleanup(&req.host);
-            cleanup(&req.usr_agent);
-            return -1;
-        }
-
-        fread(fbuffer, sizeof(char), fsize, fptr);
-
-        if(fbuffer == NULL){
-            fclose(fptr);
-            cleanup(&req.method);
-            cleanup(&req.uri);
-            cleanup(&req.host);
-            cleanup(&req.usr_agent);
-            return -1;
-        }
-
-        fbuffer[fsize] = '\0';
-
-        fclose(fptr);
+    if(fbuffer == NULL){
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        return -1;
     }
 
-    printf("%s\n", fbuffer);
+    fread(fbuffer, sizeof(char), fsize, fptr);
+
+    if(fbuffer == NULL){
+        fclose(fptr);
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        return -1;
+    }
+
+    fbuffer[fsize] = '\0';
+
+    fclose(fptr);
 
     http_res_t res{0};
-    char *res_str = create_http_res(buffer, &res);
+    char *res_str = create_http_res(&fbuffer, &res);
+    if(res_str == NULL){
+        printf("Error creating response: %d\n", errno);
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        cleanup(&fbuffer);
+        return -1;
+    }
+
+    printf("%s\n", res_str);
+
+    fflush(fptr);
+
+    size_t rest_str_size = strlen(res_str);
+
+    if((send(conn_sock, res_str, rest_str_size, 0)) == -1){
+        cleanup(&req.method);
+        cleanup(&req.uri);
+        cleanup(&req.host);
+        cleanup(&req.usr_agent);
+        cleanup(&fbuffer);
+        cleanup(&res_str);
+        return -1;
+    }
+
+    
+    cleanup(&req.method);
+    cleanup(&req.uri);
+    cleanup(&req.host);
+    cleanup(&req.usr_agent);
+    cleanup(&fbuffer);
+    cleanup(&res_str);
+
+    printf("Closed client socket\n");
 
     return close(conn_sock);
 }
