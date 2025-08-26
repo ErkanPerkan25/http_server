@@ -197,49 +197,16 @@ int handle_client(int conn_sock){
     if(parse_http_req(buffer, &req) == 1){
         return -1;
     }
-
-    printf("%s\n", req.uri);
-
-    // remove leading '.' and '/'
-    size_t url_size = strlen(req.uri);  
-    size_t filename_size;
-    // gets the size of filename
-    for(int i,j=0; i < url_size; i++){
-        if(req.uri[i] != '.' || req.uri[i] != '/'){
-            j++;
-        }
-        else{
-            filename_size = j;
-            break;
-        }
-    }
-
-    // allocates the memory and sets it
-    char *filename = (char *)calloc(filename_size+1, sizeof(char));
-    if(filename == NULL){
-        cleanup(&filename);
-        return -1;
-    }
-
-    for(int i,j=0; i < url_size; i++){
-        if(req.uri[i] != '.' || req.uri[i] != '/'){
-            filename[j++] = req.uri[i];
-        }
-        else{
-            filename[j] = '\0';
-            break;
-        }
-    }
-
-    char *path = (char*)"../www/";
+    
+    char *path = (char*)"../www";
 
     size_t path_size = strlen(path);
-    size_t file_var_size = strlen(filename);
+    size_t file_var_size = strlen(req.uri);
 
     char *full_path = (char*)calloc(path_size+file_var_size+1, sizeof(char));
     if(full_path == NULL){
         cleanup(&path);
-        cleanup(&filename);
+        //cleanup(&filename);
         cleanup(&req.method);
         cleanup(&req.uri);
         cleanup(&req.host);
@@ -248,8 +215,7 @@ int handle_client(int conn_sock){
     }
 
     strcpy(full_path, path);
-    printf("%s\n",filename);
-    strcat(full_path, filename);
+    strcat(full_path, req.uri);
 
     printf("%s\n", full_path);
 
