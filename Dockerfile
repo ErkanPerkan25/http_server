@@ -1,17 +1,14 @@
+# use an official image with a C compiler
 FROM gcc:latest
 
-# set directory
-WORKDIR /usr/local/http_server
+# install additional tools like CMake and make
+RUN apt-get update && apt-get install -y cmake make gdb
 
-# Installs cmake
-RUN pacman -Syu && pacman -S cmake 
+# set working directory inside the container
+WORKDIR /http_server
 
-# Copies source code
+# copy the project files into container
 COPY . .
 
-# Set up a user to not run as root
-RUN useradd app
-USER app
-
-# exposes the port
+# expose the port for the server
 EXPOSE 8080

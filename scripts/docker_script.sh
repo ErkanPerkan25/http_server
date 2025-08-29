@@ -6,7 +6,7 @@ pull=false
 attach=false
 
 for arg in "$@"; do
-    case args in
+    case $arg in
         --pull)
             pull=true
             shift
@@ -22,7 +22,12 @@ for arg in "$@"; do
 done
 
 if  [[ $pull == true ]]; then
-    echo "PULL is true"
+    echo "Building image"
+    docker build -t http_server .
 elif [[ $attach == true ]]; then
-    echo "Attach is true"
+    echo "Attaching container"
+    docker exec -i http_server bash
+else
+    echo "Starting HTTP server"
+    docker run --rm -it --name="http_server" -v "${root_dir}":/http_server -w="/http_server" -p 8080:8080 http_server
 fi
