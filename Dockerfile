@@ -4,6 +4,9 @@ FROM gcc:latest
 # install additional tools like CMake and make
 RUN apt-get update && apt-get install -y cmake make gdb
 
+RUN useradd app
+USER app
+
 # set working directory inside the container
 WORKDIR /http_server
 

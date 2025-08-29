@@ -15,9 +15,13 @@ git clone https://github.com/ErkanPerkan25/http_server.git
 2. Install dependencies:
 
 ## Usage
-To run the project, use the following command:
+To build and attach the Docker images run this command:
 ```bash
-
+./scripts/docker_script.sh --pull --attach
+```
+And then to run the container to run:
+```bash
+./scripts/docker_script.sh
 ```
 
 ## License
