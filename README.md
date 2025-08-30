@@ -1,6 +1,7 @@
 # http_server written in C/C++
-A simple HTTP server written in C/C++ for learning deeper knowledge of HTTP
-protocol and using dynamic memory allocation and deallocation.
+A simple HTTP server written in C/C++ for learning about the HTTP
+protocol and using dynamic memory allocation and deallocation. As
+well as how to use Docker containers.
 
 ## Table of Contents
 - [Installation](#installtion)
@@ -22,6 +23,14 @@ To build and attach the Docker images run this command:
 And then to run the container to run:
 ```bash
 ./scripts/docker_script.sh
+```
+Within in the container go to the `build` directory:
+```bash
+cd build
+```
+And then run this command to start the server:
+```bash
+./http_server
 ```
 
 ## License
